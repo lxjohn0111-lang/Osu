@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><body><script type="module">
+import { SONGS } from '../../js/songs.js';
+import { renderSong, chartSource, compile } from '../../js/synth.js';
+import { generate, DIFF_ORDER } from '../../js/mapgen.js';
+import { analyze } from '../../js/analyzer.js';
+const out = { maps: [], an: [] };
+for (const s of SONGS) {
+  const src = chartSource(s);
+  for (const d of DIFF_ORDER) {
+    const t = performance.now(); const m = generate(src, d, 1.6, s.id);
+    let oob = 0, minGap = 9; m.objs.forEach((o, i) => { if (o.x < 0.03 || o.x > 0.97 || o.y < 0.05 || o.y > 0.95) oob++; if (i) minGap = Math.min(minGap, o.t - m.objs[i - 1].end); });
+    out.maps.push(`${s.id} ${d}: n=${m.count} tap=${m.taps} sl=${m.slides} sp=${m.spins} combo=${m.maxCombo} nps=${m.nps.toFixed(2)} stars=${m.stars} first=${m.first.toFixed(2)} minGap=${minGap.toFixed(3)} oob=${oob} ms=${(performance.now() - t).toFixed(0)}`);
+  }
+}
+for (const s of [SONGS[2], SONGS[0], SONGS[5]]) {
+  const buf = await renderSong(s); const c = compile(s);
+  const t = performance.now(); const a = await analyze(buf); const ms = performance.now() - t;
+  // compare detected step grid to true grid: for each true beat find nearest detected beat
+  const trueBeat = 60 / s.bpm; let sum = 0, cnt = 0, abs = 0;
+  for (let k = 0; k < a.nSteps; k += 4) { const t = a.stepTimes[k]; if (t < 5 || t > buf.duration - 8) continue; const ph = ((t - c.t0) / trueBeat); const d = (ph - Math.round(ph)) * trueBeat; sum += d; abs += Math.abs(d); cnt++; }
+  // onset bias vs kicks
+  const kicks = c.tracks.kick.map(k => c.t0 + k.s * c.stepDur); let ks = 0, kc = 0;
+  for (const cd of a.cands) { let best = 9; for (const k of kicks) { const d = cd.t - k; if (Math.abs(d) < Math.abs(best)) best = d; } if (Math.abs(best) < 0.04) { ks += best; kc++; } }
+  // downbeat check
+  const db = ((a.stepTimes[0] - c.t0) / (trueBeat * 4)); 
+  const srcA = a; const gens = DIFF_ORDER.map(d => { const m = generate(srcA, d, 1.6, 'x'); return `${d}:${m.count}/${m.slides}/${m.spins} nps ${m.nps.toFixed(2)}`; });
+  out.an.push(`${s.id}: bpm ${a.bpm} (true ${s.bpm}) ms=${ms.toFixed(0)} beatOffsetMean=${(sum / cnt * 1000).toFixed(1)}ms abs=${(abs / cnt * 1000).toFixed(1)}ms kickBias=${(ks / kc * 1000).toFixed(1)}ms (n=${kc}) onsets=${a.onsetCount} cands=${a.cands.length} barPhase=${(db - Math.floor(db)).toFixed(2)} fever=${a.sections.filter(x => x.fever).map(x => a.stepTimes[x.s0].toFixed(0) + '-' + a.stepTimes[x.s1].toFixed(0)).join(',')} | ${gens.join(' | ')}`);
+}
+window.RESULT = out;
+</script>
