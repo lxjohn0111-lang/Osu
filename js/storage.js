@@ -26,16 +26,46 @@ function merge(base, extra) {
   return base;
 }
 
+// Keep the save well under the data module's size limit. If it ever grows past this, older
+// score history is trimmed first (best score per chart is always kept).
+const MAX_CHARS = 512 * 1024;
+
 export const Save = {
-  data: DEFAULTS(), _timer: null,
+  data: DEFAULTS(), _timer: null, _dirty: false, lastSize: 0,
   load() {
-    try { const raw = SDK.getItem(KEY); if (raw) this.data = merge(DEFAULTS(), JSON.parse(raw)); } catch (e) { this.data = DEFAULTS(); }
+    let raw = null;
+    try { raw = SDK.getItem(KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try { this.data = merge(DEFAULTS(), typeof raw === 'string' ? JSON.parse(raw) : raw); }
+      catch (e) { console.warn('[save] unreadable save, starting fresh', e); this.data = DEFAULTS(); }
+    } else this.data = DEFAULTS();
     return this.data;
   },
+  /** Queue a write; bursts of changes (slider drags) collapse into one. */
   save() {
+    this._dirty = true;
     clearTimeout(this._timer);
-    this._timer = setTimeout(() => { try { SDK.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } }, 250);
+    this._timer = setTimeout(() => this.flush(), 400);
   },
+  /** Write now: after a run, and when the page is being hidden or closed. */
+  flush() {
+    clearTimeout(this._timer); this._timer = null;
+    if (!this._dirty) return true;
+    let json = JSON.stringify(this.data);
+    if (json.length > MAX_CHARS) { this._compact(); json = JSON.stringify(this.data); }
+    this.lastSize = json.length;
+    const ok = SDK.setItem(KEY, json);
+    if (ok) this._dirty = false;
+    return ok;
+  },
+  _compact() {
+    const sc = this.data.scores;
+    for (const k of Object.keys(sc)) if (sc[k].length > 1) sc[k].length = 1;
+    // still too big: drop the oldest charts entirely
+    const keys = Object.keys(sc).sort((a, b) => (sc[a][0] ? sc[a][0].date : 0) - (sc[b][0] ? sc[b][0].date : 0));
+    while (keys.length && JSON.stringify(this.data).length > MAX_CHARS) delete sc[keys.shift()];
+  },
+  where() { return SDK.cloud ? 'CrazyGames' : 'browser'; },
   bestOf(trackId, diff) { const l = this.data.scores[trackId + '|' + diff]; return l && l.length ? l[0] : null; },
   addScore(trackId, diff, entry) {
     const k = trackId + '|' + diff, l = this.data.scores[k] || (this.data.scores[k] = []);

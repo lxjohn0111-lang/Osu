@@ -318,7 +318,7 @@ export class Renderer {
       for (let i = this.clicks.length - 1; i >= 0; i--) { const k = (now - this.clicks[i].t) / 300; if (k >= 1) { this.clicks.splice(i, 1); continue; } c.globalAlpha = (1 - k) * 0.7; c.strokeStyle = rgba(mixRgb(this.track[2], WHITE, 0.5), 1); c.lineWidth = 3 * (1 - k) + 0.5; c.beginPath(); c.arc(this.clicks[i].x, this.clicks[i].y, R * (0.6 + 1.2 * easeOutCubic(k)), 0, TAU); c.stroke(); }
       c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
     }
-    this._hud(p, now, T);
+    if (!this.noHud) this._hud(p, now, T);
     // overlays
     if (p.hp < 0.25 && !p.nofail && p.state === 'playing') {
       const a = ((0.25 - p.hp) / 0.25) * (0.28 + 0.14 * Math.sin(now / 130));
@@ -326,7 +326,7 @@ export class Renderer {
       g.addColorStop(0, 'rgba(255,30,60,0)'); g.addColorStop(1, `rgba(255,30,60,${a})`); c.fillStyle = g; c.fillRect(0, 0, this.w, this.h);
     }
     if (this.flash > 0.01) { c.globalAlpha = this.flash; c.fillStyle = rgba(this.flashCol, 1); c.fillRect(0, 0, this.w, this.h); c.globalAlpha = 1; }
-    if (this.banner) {
+    if (this.banner && !this.noHud) {
       const e = (now - this.banner.t) / 1100;
       if (e >= 1) this.banner = null;
       else {
@@ -343,7 +343,7 @@ export class Renderer {
     }
     // intro card
     const since = (now - p.startedAt) / 1000;
-    if (since < 3.4 && p.head === 0 && T < p.first) {
+    if (!this.noHud && since < 3.4 && p.head === 0 && T < p.first) {
       const a = clamp(since / 0.4, 0, 1) * clamp((3.4 - since) / 0.6, 0, 1) * clamp((p.first - T) / 0.5, 0, 1);
       c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.font = `900 ${Math.min(52, this.w * 0.06)}px ${FONT_D}`; c.fillStyle = '#fff'; c.shadowColor = rgba(this.track[0], 1); c.shadowBlur = 24;

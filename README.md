@@ -63,7 +63,7 @@ detects 87–88 BPM (half-time), and the grid still lines up because notes fall 
 | `ad.requestAd('midgame')` | When leaving the results screen, and when retrying after a fail. Never during play |
 | `ad.requestAd('rewarded')` | **Revive** after a fail (once per run), and unlocking a cosmetic before you reach its level |
 | `game.settings.muteAudio` + listener | Respects the platform mute |
-| `data.getItem` / `setItem` | Save data (falls back to `localStorage` outside CrazyGames) |
+| `data.getItem` / `setItem` | **All progress** (level, XP, scores, achievements, unlocks, settings) under the key `starpulse_save_v1`. Written right after every run and ad unlock, and when the tab is hidden or closed. On CrazyGames there is no separate local copy, as the SDK docs recommend. Off-platform it falls back to `localStorage` |
 | `user.getUser()` | Shows the player's CrazyGames username |
 
 While an ad is showing, the audio context is suspended. Outside CrazyGames the SDK reports
@@ -73,8 +73,12 @@ While an ad is showing, the audio context is suspended. Outside CrazyGames the S
 
 ```bash
 node tools/serve.mjs 8080      # then open http://localhost:8080
-python3 tools/build.py         # -> dist/starpulse.zip, ready to upload to CrazyGames
+python3 tools/build.py         # -> crazygames-upload/game/ and crazygames-upload/starpulse.zip
+node tools/covers.cjs          # -> crazygames-upload/covers/ (needs the dev server running)
 ```
+
+Everything needed for the CrazyGames submission is in `crazygames-upload/`; its README
+(in Hungarian) says what to upload where.
 
 `tools/dev/*.html` are test pages for the synth, the chart generator and the analyser.
 

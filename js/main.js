@@ -336,7 +336,7 @@ function showResults(res, t) {
       newBest = Save.addScore(t.id, res.diff, { score: res.score, acc: res.acc, combo: res.maxCombo, rank: res.rank, mods: res.mods, date: Date.now() });
     }
     for (const a of ACH) if (!d.ach[a.id] && a.test(res, d, t)) { d.ach[a.id] = Date.now(); unlocked.push(a); }
-    Save.save();
+    Save.save(); Save.flush(); // write the run's progress immediately
   }
   const after = levelInfo(d.xp);
   S.play = null; bg.tdim = 0.25; bg.tfever = 0; R.reset();
@@ -433,6 +433,10 @@ function renderSettings() {
     r.querySelectorAll('.keybtn').forEach((b) => { b.onclick = () => { $$('.keybtn').forEach((x) => x.classList.remove('wait')); b.classList.add('wait'); b.textContent = '…'; S.rebinding = b.dataset.k; }; });
     el.appendChild(r); }
   toggle('Mouse buttons hit notes', 'mouseBtns');
+  head('PROGRESS');
+  { const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<label>${SDK.cloud ? 'Your level, scores, unlocks and settings are saved automatically through CrazyGames.' : 'Your level, scores, unlocks and settings are saved automatically in this browser.'}</label>`;
+    el.appendChild(r); }
 }
 function isUnlocked(grp, key, tbl) { return levelInfo(D().xp).level >= tbl[key].level || D().unlocked[grp].includes(key); }
 function renderCustom() {
@@ -450,7 +454,7 @@ function renderCustom() {
           sfx('click');
           const got = await SDK.requestAd('rewarded');
           if (!got) { toast(`Reach level ${tbl[k].level} to unlock ${tbl[k].name}, or try the ad again later.`); return; }
-          D().unlocked[grp].push(k); toast(`<b>UNLOCKED</b> ${tbl[k].name}`, true); sfx('milestone');
+          D().unlocked[grp].push(k); Save.save(); Save.flush(); toast(`<b>UNLOCKED</b> ${tbl[k].name}`, true); sfx('milestone');
         } else sfx('click');
         D().equip[grp] = k; Save.save(); applySettings(); renderCustom();
       };
@@ -584,7 +588,8 @@ function bindInput() {
   });
   window.addEventListener('keyup', (e) => { const s = D().settings, p = S.play; if (p && (e.code === s.k1 || e.code === s.k2)) p.release('mouse'); });
   window.addEventListener('blur', () => pauseGame());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { pauseGame(); Save.flush(); } });
+  window.addEventListener('pagehide', () => Save.flush());
   window.addEventListener('resize', onResize); window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
   // drag & drop import
   let dragN = 0;

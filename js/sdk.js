@@ -71,13 +71,28 @@ export const SDK = {
     });
   },
 
+  // ---- Data module. On CrazyGames all progress goes through SDK.data, which stores it for guests
+  // and logged-in players alike (synced across devices when logged in). The docs advise relying on it
+  // fully, so there is deliberately no second local copy. localStorage is used only off-platform.
+  get cloud() { return this.active && !!(this.sdk && this.sdk.data); },
   getItem(k) {
-    if (this.active) { try { const v = this.sdk.data.getItem(k); if (v !== undefined) return v; } catch (e) { /* fall through */ } }
+    if (this.cloud) {
+      try { const v = this.sdk.data.getItem(k); return v === undefined ? null : v; }
+      catch (e) { console.warn('[SDK] data.getItem failed', e); return null; }
+    }
     try { return localStorage.getItem(k); } catch (e) { return null; }
   },
+  /** @returns true when the value was handed to storage */
   setItem(k, v) {
-    if (this.active) { try { this.sdk.data.setItem(k, v); return; } catch (e) { /* fall through */ } }
-    try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ }
+    if (this.cloud) {
+      try { this.sdk.data.setItem(k, v); return true; }
+      catch (e) { console.warn('[SDK] data.setItem failed', e); return false; }
+    }
+    try { localStorage.setItem(k, v); return true; } catch (e) { return false; }
+  },
+  removeItem(k) {
+    if (this.cloud) { try { this.sdk.data.removeItem(k); } catch (e) { /* ignore */ } return; }
+    try { localStorage.removeItem(k); } catch (e) { /* ignore */ }
   },
   async username() {
     if (!this.active) return null;
