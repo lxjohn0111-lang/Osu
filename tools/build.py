@@ -4,7 +4,8 @@
     python3 tools/build.py
 
 Creates:
-    crazygames-upload/game/            the game, exactly as it should be uploaded (index.html at the root)
+    crazygames-upload/game/            the game, exactly as it should be uploaded (index.html at the root,
+                                       music/ holds the featured tracks and their pre-generated charts)
     crazygames-upload/starpulse.zip    the same files zipped, for the developer portal's upload field
 
 Cover images are rendered separately with: node tools/covers.cjs   (needs the dev server running)
@@ -27,7 +28,7 @@ if SDK_TAG not in html:
     html = re.sub(r'(<link rel="stylesheet")', SDK_TAG + '\n\\1', html, count=1)
 open(os.path.join(GAME, 'index.html'), 'w', encoding='utf-8').write(html)
 
-for d in ('css', 'js', 'fonts'):
+for d in ('css', 'js', 'fonts', 'music'):
     shutil.copytree(os.path.join(ROOT, d), os.path.join(GAME, d))
 
 files = []

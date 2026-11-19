@@ -1,33 +1,48 @@
 # STARPULSE — Play Your Music
 
 A neon rhythm game for the browser, built for **CrazyGames** with the CrazyGames HTML5 SDK v3.
-Tap circles on the beat, follow slide trails, and spin reactors. You can play the original
-soundtrack, or drop in **your own songs** and get a playable beatmap in seconds.
+Tap circles on the beat, follow slide trails, and spin reactors. Play nine real recorded
+tracks by Kevin MacLeod, or drop in **your own songs** and get a playable beatmap in seconds.
 
-The whole game is a **136 KB zip**: there are no audio files to download and no build step.
+The game code is about 140 KB. The nine featured songs (27 MB in total) are only
+downloaded when a player picks them, so the game starts fast.
 
-## The music problem, solved
+## Music
 
-Shipping famous songs on a web portal isn't legal without licences. A Spotify integration
-doesn't help either: Spotify's terms forbid using its audio in games, and its SDK only plays
-for logged-in Premium users. NCS tracks need attribution per track and can still be
-copyright-claimed. STARPULSE gets around all of this two ways:
+Chart hits by major artists (Justin Bieber, Taylor Swift and so on) can't be shipped in a web
+game without a licence from their labels. NoCopyrightSounds (NCS) is free for videos and
+streams, but its usage policy treats use in a video game as commercial use that needs a
+separate contract. Spotify's terms forbid using its audio in games. STARPULSE therefore has
+two sources of music:
 
-1. **Original soundtrack, synthesised live.** Six full-length tracks, from 1:33 to 2:04:
-   synthwave, future house, chiptune, chillwave, uplifting trance and drum & bass.
-   They are composed as note data in `js/songs.js` and rendered to audio in the player's
-   browser (`js/synth.js`). Because the beatmaps are generated from the *same notes* as the
-   music, every hit lands exactly on a real musical event. Melodic hit sounds even play the
-   tune as you hit. All of it is original, so there is nothing to license.
+1. **Featured tracks: real recordings, CC BY 4.0.** Nine tracks by
+   [Kevin MacLeod (incompetech.com)](https://incompetech.com), whose catalogue is licensed
+   under Creative Commons Attribution 4.0. That allows commercial, ad-supported use as long
+   as the artist is credited, which the in-game **Music & Credits** screen does:
+
+   | Track | BPM | Length |
+   |---|---|---|
+   | Local Forecast - Elevator | 82 | 3:09 |
+   | Carefree | 96 | 3:25 |
+   | Bit Quest | 100 | 3:12 |
+   | Getting it Done | 135 | 3:30 |
+   | 8bit Dungeon Boss | 134 | 2:52 |
+   | Meatball Parade | 150 | 3:25 |
+   | Cipher | 150 | 3:51 |
+   | Quirky Dog | 155 | 2:29 |
+   | Volatile Reaction | 155 | 2:45 |
+
+   Each file is the official incompetech MP3. Its SHA-256 matched the incompetech record before
+   it was re-encoded to 128 kbps for the web; that is the only change. The beatmaps are
+   pre-generated from the audio with the composer's official BPM (`tools/make-charts.cjs` →
+   `music/charts.json`). Between 80% and 100% of each track's strong notes fall within 30 ms
+   of the beat grid.
 2. **Your Music.** Players pick or drag-and-drop any audio file they own (MP3, OGG, WAV,
    FLAC, M4A). `js/analyzer.js` finds the tempo, beat grid, downbeats, note onsets and
    high-energy "drop" sections, and `js/mapgen.js` builds four difficulties from them.
    Everything runs **on the device**: files are never uploaded, so the game never hosts or
-   distributes anyone's copyrighted audio. Imported songs are kept locally in IndexedDB.
-
-Accuracy, measured against the synthesised tracks: tempo is detected exactly (128/128 and
-88/88 BPM), and the beat grid is within about 2 ms. For a 174 BPM drum & bass track it
-detects 87–88 BPM (half-time), and the grid still lines up because notes fall on 16th notes.
+   distributes anyone's copyrighted audio. This is how a player can play the pop songs they
+   own. Imported songs are kept locally in IndexedDB.
 
 ## Features
 
@@ -80,7 +95,9 @@ node tools/covers.cjs          # -> crazygames-upload/covers/ (needs the dev ser
 Everything needed for the CrazyGames submission is in `crazygames-upload/`; its README
 (in Hungarian) says what to upload where.
 
-`tools/dev/*.html` are test pages for the synth, the chart generator and the analyser.
+```bash
+node tools/make-charts.cjs     # re-generate music/charts.json after changing tracks or the analyser
+```
 
 ## Layout
 
@@ -92,11 +109,12 @@ js/game.js          gameplay: timing, judgement, score, energy, input, autoplay
 js/render.js        canvas renderer: notes, effects, particles, HUD, menu visualiser
 js/background.js    WebGL shader backgrounds
 js/audio.js         Web Audio transport, latency-compensated clock, synthesised SFX
-js/synth.js         offline music synthesiser and chart source for the soundtrack
-js/songs.js         the six original compositions
-js/analyzer.js      beat and onset analysis for imported songs
+js/tracks.js        featured track list with credits and licence
+js/chartpack.js     compact storage format for pre-generated chart material
+js/analyzer.js      beat and onset analysis (featured tracks offline, imported songs live)
 js/mapgen.js        beatmap generator
 js/sdk.js           CrazyGames SDK wrapper
 js/storage.js       save data and IndexedDB music library
 fonts/              Orbitron and Rajdhani (SIL Open Font License)
+music/              featured tracks (MP3) and music/charts.json
 ```

@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>chart builder</title><body><script type="module">
+// Driven by tools/make-charts.cjs: analyses every featured track and exposes the packed charts.
+import { TRACKS } from '../../js/tracks.js';
+import { analyze } from '../../js/analyzer.js';
+import { packChart, unpackChart } from '../../js/chartpack.js';
+import { generate, DIFF_ORDER } from '../../js/mapgen.js';
+
+const ctx = new OfflineAudioContext(2, 44100, 44100);
+const out = {}, report = [];
+for (const t of TRACKS) {
+  const ab = await (await fetch('../../' + t.file)).arrayBuffer();
+  const buf = await ctx.decodeAudioData(ab);
+  const a = await analyze(buf, () => {}, { bpm: t.bpm });
+  const packed = packChart(a);
+  out[t.id] = packed;
+  // quality: how many strong onsets fall within 30 ms of the 16th grid
+  const u = unpackChart(packed);
+  const strong = u.cands.filter((c) => c.mel);
+  const near = strong.filter((c) => Math.abs(c.t - u.stepTimes[c.step]) < 0.03).length;
+  const fever = u.sections.filter((s) => s.fever).map((s) => `${u.stepTimes[s.s0].toFixed(0)}-${u.stepTimes[Math.min(u.nSteps, s.s1)].toFixed(0)}s`).join(',');
+  const maps = DIFF_ORDER.map((d) => { const m = generate(u, d, 1.6, t.id); return `${d[0].toUpperCase()}:${m.count}n/${m.slides}s/${m.spins}sp ★${m.stars}`; }).join(' ');
+  report.push(`${t.id.padEnd(24)} ${buf.duration.toFixed(0)}s bpm ${a.bpm} onsets ${a.onsetCount} cands ${a.cands.length} onGrid ${(near / Math.max(1, strong.length) * 100).toFixed(0)}% first-beat ${u.stepTimes[0].toFixed(3)} fever ${fever || '-'} | ${maps}`);
+}
+window.CHARTS = out; window.REPORT = report;
+</script></body>

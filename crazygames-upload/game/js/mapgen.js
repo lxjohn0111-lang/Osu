@@ -137,7 +137,7 @@ export function generate(src, diffKey, A, seed) {
     let made = 0;
     for (let i = 0; i + 1 < chosen.length && made < 3; i++) {
       const a0 = chosen[i].step + (chosen[i].sl || 0) + endGap, b0 = chosen[i + 1].step - Math.max(8, 2 * g);
-      if (st[b0] - st[a0] < 2.2) continue;
+      if (b0 <= a0 || b0 >= n || !(st[b0] - st[a0] >= 2.2)) continue;
       let on = 0; for (let k = a0; k < b0; k++) on += active[k];
       if (on < (b0 - a0) * 0.8) continue;
       let a = a0; while (st[b0] - st[a] > 4.5) a++;
@@ -155,6 +155,8 @@ export function generate(src, diffKey, A, seed) {
   }
   for (const s of spinners) objs.push({ type: 2, t: st[s.a], end: st[s.b], step: s.a, midi: null, pitch: null });
   objs.sort((a, b) => a.t - b.t);
+  // never let a malformed object reach the player
+  for (let i = objs.length - 1; i >= 0; i--) if (!Number.isFinite(objs[i].t) || !Number.isFinite(objs[i].end) || objs[i].end < objs[i].t) objs.splice(i, 1);
 
   place(objs, D, A, rnd, sdur);
 

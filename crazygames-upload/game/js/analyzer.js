@@ -4,8 +4,8 @@
 //   -> beat tracking (dynamic programming) -> onset picking -> snap to a 16th grid.
 
 const N = 1024, H = 256;
-// Spectral flux peaks slightly before the audible attack centre; measured against the
-// built-in synth tracks (tools/dev) and compensated here.
+// Spectral flux peaks slightly before the audible attack centre; this offset was measured
+// against test tracks with known note times and is compensated here.
 const ONSET_BIAS = -0.005;
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -36,7 +36,8 @@ function quantile(arr, q) {
   return a[Math.min(a.length - 1, Math.floor(q * a.length))];
 }
 
-export async function analyze(buffer, onProgress = () => {}) {
+/** opts.bpm: the known tempo (e.g. from the composer's metadata); skips tempo estimation. */
+export async function analyze(buffer, onProgress = () => {}, opts = {}) {
   const sr0 = buffer.sampleRate, dec = sr0 >= 32000 ? 2 : 1, sr = sr0 / dec;
   const n = Math.floor(buffer.length / dec), duration = buffer.duration;
   const c0 = buffer.getChannelData(0), c1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
@@ -92,7 +93,8 @@ export async function analyze(buffer, onProgress = () => {}) {
     }
   }
   let P = bestLag;
-  if (bestLag > lagMin && bestLag < lagMax) { const a = ac[bestLag - 1], b = ac[bestLag], c = ac[bestLag + 1], den = a - 2 * b + c; if (den < 0) P = bestLag + (0.5 * (a - c)) / den; }
+  if (opts.bpm > 0) P = (60 * fr) / opts.bpm;
+  if (!(opts.bpm > 0) && bestLag > lagMin && bestLag < lagMax) { const a = ac[bestLag - 1], b = ac[bestLag], c = ac[bestLag + 1], den = a - 2 * b + c; if (den < 0) P = bestLag + (0.5 * (a - c)) / den; }
   onProgress(0.78); await tick();
 
   // beat tracking (Ellis-style dynamic programming)
@@ -130,7 +132,7 @@ export async function analyze(buffer, onProgress = () => {}) {
   stepTimes[nSteps] = beats[beats.length - 1];
   const ivs = []; for (let k = 1; k < bf.length; k++) ivs.push((bf[k] - bf[k - 1]) / fr);
   const medIv = ivs.length ? quantile(ivs, 0.5) : 0.5;
-  const bpm = bf.length > 8 ? Math.round((60 * (bf.length - 1)) / ((bf[bf.length - 1] - bf[0]) / fr)) : Math.round(60 / (medIv || 0.5));
+  const bpm = opts.bpm > 0 ? Math.round(opts.bpm) : bf.length > 8 ? Math.round((60 * (bf.length - 1)) / ((bf[bf.length - 1] - bf[0]) / fr)) : Math.round(60 / (medIv || 0.5));
   onProgress(0.88); await tick();
 
   // onset peak picking

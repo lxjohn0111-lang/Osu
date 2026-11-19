@@ -5,7 +5,7 @@
 | Fájl / mappa | Mire való |
 |---|---|
 | `starpulse.zip` | **Ezt töltsd fel játékfájlként** a CrazyGames Developer Portalon. Az `index.html` a zip gyökerében van. |
-| `game/` | Ugyanez kicsomagolva, ha mappát kér a feltöltő, vagy helyben akarod kipróbálni. |
+| `game/` | Ugyanez kicsomagolva, ha mappát kér a feltöltő, vagy helyben akarod kipróbálni. A `music/` mappában vannak a zenék és az előre generált pályák. |
 | `covers/cover-landscape-1920x1080.png` | Fekvő borítókép (16:9) |
 | `covers/cover-portrait-800x1200.png` | Álló borítókép |
 | `covers/cover-square-800x800.png` | Négyzetes borítókép |
@@ -15,6 +15,18 @@ dokumentációja megerősíti, az álló és a négyzetes méretet nem tudtam el
 
 A portál egy 15–20 másodperces előnézeti videót is kér. Ezt a játékból vett képernyőfelvétellel
 tudod elkészíteni (például Autoplay mod mellett, egy FEVER szakasz alatt).
+
+## Zene
+
+A játékban 9 valódi, felvett szám szól Kevin MacLeodtól (incompetech.com), **CC BY 4.0**
+licenccel. Ez megengedi a reklámos, kereskedelmi használatot, ha az előadót feltüntetjük; ezt a
+játék „MUSIC & CREDITS” képernyője megteszi. A fájlok az eredeti incompetech MP3-ak (SHA-256
+ellenőrizve), webre 128 kbps-re újrakódolva. A zenék csak akkor töltődnek le, amikor a játékos
+kiválasztja őket, így a játék gyorsan indul.
+
+Toplistás slágereket (pl. Justin Bieber) a kiadók engedélye nélkül nem lehet a játékba tenni,
+és az NCS zenék is külön szerződést igényelnek játékban. A játékosok a saját zenéiket a
+„Your Music” gombbal tölthetik be: ezek a gépükön maradnak.
 
 ## A játék és a CrazyGames SDK
 

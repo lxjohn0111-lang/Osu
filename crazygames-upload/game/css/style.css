@@ -336,3 +336,13 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bo
   .info .stats { display: none; }
   .song-list { padding-left: 22px; }
 }
+
+/* credits */
+.credits-link { margin-left: auto; font: 700 12px var(--fu); letter-spacing: 0.16em; color: var(--mute); padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--glass); }
+.credits-link:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.credits h4 { font: 700 12px var(--fu); letter-spacing: 0.3em; color: var(--c3); margin: 8px 0 6px; }
+.credits { display: flex; flex-direction: column; gap: 8px; }
+.credit { padding: 9px 12px; border-radius: 12px; background: var(--glass2); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; user-select: text; -webkit-user-select: text; }
+.credit b { font-size: 15px; letter-spacing: 0.03em; }
+.credit span { font-size: 12.5px; color: var(--mute); font-weight: 500; overflow-wrap: anywhere; }
+.credit a { color: var(--c3); }

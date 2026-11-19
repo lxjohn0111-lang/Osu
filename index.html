@@ -31,7 +31,7 @@
     <div class="boot-wrap">
       <h1 class="logo">STAR<span>PULSE</span></h1>
       <div class="boot-bar"><i id="boot-fill"></i></div>
-      <div class="boot-text" id="boot-text">WARMING UP THE SYNTHS</div>
+      <div class="boot-text" id="boot-text">LOADING</div>
     </div>
   </section>
 
@@ -66,14 +66,14 @@
       <div class="menu-col">
         <h1 class="logo">STAR<span>PULSE</span></h1>
         <nav class="menu-nav">
-          <button class="mbtn primary" data-act="play"><b>PLAY</b><small>Original soundtrack · 4 difficulties each</small></button>
+          <button class="mbtn primary" data-act="play"><b>PLAY</b><small>9 featured tracks · 4 difficulties each</small></button>
           <button class="mbtn" data-act="import"><b>YOUR MUSIC</b><small>Drop in any song — instant beatmap</small></button>
           <button class="mbtn" data-act="custom"><b>CUSTOMIZE</b><small>Note skins, palettes &amp; cursor trails</small></button>
           <button class="mbtn" data-act="help"><b>HOW TO PLAY</b><small>Tap · Slide · Spin</small></button>
         </nav>
       </div>
     </div>
-    <footer class="nowplaying"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="np-text">Synthesising soundtrack…</span></footer>
+    <footer class="nowplaying"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="np-text">Loading music…</span><button class="credits-link" data-act="credits">MUSIC &amp; CREDITS</button></footer>
   </section>
 
   <!-- SONG SELECT -->
@@ -180,6 +180,12 @@
   <div class="overlay" id="ov-custom"><div class="panel modal wide-modal">
     <header><h2>CUSTOMIZE</h2><button class="icon-btn" data-act="close"><svg><use href="#i-x"/></svg></button></header>
     <div class="custom" id="custom-body"></div>
+  </div></div>
+
+  <div class="overlay" id="ov-credits"><div class="panel modal">
+    <header><h2>CREDITS</h2><button class="icon-btn" data-act="close"><svg><use href="#i-x"/></svg></button></header>
+    <div class="credits" id="credits-body"></div>
+    <footer><button class="btn play" data-act="close"><span>CLOSE</span></button></footer>
   </div></div>
 
   <div class="overlay" id="ov-achv"><div class="panel modal">

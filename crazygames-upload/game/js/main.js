@@ -3,8 +3,8 @@ import { $, $$, esc, clamp, fmtTime, hashStr, hslToRgb, rgbToHex, isTouch, sleep
 import { SDK } from './sdk.js';
 import { Save, Library, levelInfo } from './storage.js';
 import { AudioSys } from './audio.js';
-import { SONGS } from './songs.js';
-import { renderSong, chartSource } from './synth.js';
+import { TRACKS, LICENSE, CHANGES } from './tracks.js';
+import { unpackChart } from './chartpack.js';
 import { analyze } from './analyzer.js';
 import { generate, DIFFS, DIFF_ORDER } from './mapgen.js';
 import { Play, MODS, MOD_ORDER, modMultiplier } from './game.js';
@@ -29,7 +29,7 @@ const ACH = [
   { id: 'insane', name: 'Event Horizon', desc: 'Clear a track on Insane', test: (r) => !r.failed && r.diff === 'insane' },
   { id: 'over', name: 'Lightspeed', desc: 'Clear a track with Overdrive', test: (r) => !r.failed && r.mods.includes('overdrive') },
   { id: 'black', name: 'Blind Faith', desc: 'Clear a track with Blackout', test: (r) => !r.failed && r.mods.includes('blackout') },
-  { id: 'all', name: 'World Tour', desc: 'Clear every original track', test: (r, d) => SONGS.every((s) => d.stats.cleared[s.id]) },
+  { id: 'all', name: 'World Tour', desc: 'Clear every featured track', test: (r, d) => TRACKS.every((s) => d.stats.cleared[s.id]) },
   { id: 'p1000', name: 'Precision Engine', desc: 'Land 1,000 PERFECT hits', test: (r, d) => d.stats.perfects >= 1000 },
   { id: 'lvl10', name: 'Rising Star', desc: 'Reach level 10', test: (r, d) => levelInfo(d.xp).level >= 10 },
 ];
@@ -73,9 +73,24 @@ function fieldAspect() {
 }
 
 // ------------------------------------------------------------------- tracks
-function builtinTrack(spec) {
-  const src = chartSource(spec);
-  return { id: spec.id, title: spec.title, artist: spec.artist, genre: spec.genre, bpm: spec.bpm, duration: src.songEnd, palette: spec.palette, bg: spec.bg, builtin: true, spec, src };
+function builtinTrack(meta, packed) {
+  const src = unpackChart(packed);
+  return { id: meta.id, title: meta.title, artist: meta.artist, genre: meta.genre, bpm: meta.bpm, duration: src.duration, palette: meta.palette, bg: meta.bg, builtin: true, meta, src };
+}
+/** Download a featured track's MP3, reporting progress 0..1. */
+async function fetchAudio(url, onProgress) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const total = +res.headers.get('content-length') || 0;
+  if (!res.body || !total || !onProgress) return res.arrayBuffer();
+  const reader = res.body.getReader(), parts = []; let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value); got += value.length; onProgress(Math.min(0.95, (got / total) * 0.95));
+  }
+  const out = new Uint8Array(got); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+  return out.buffer;
 }
 function userTrack(rec) {
   const h = hashStr(rec.id), hue = h % 360;
@@ -88,10 +103,11 @@ function getBuffer(t, onProgress) {
   let pend = S.pending.get(t.id);
   if (!pend) {
     const cbs = [];
-    const p = (t.builtin ? renderSong(t.spec, (v) => cbs.forEach((f) => f(v))) : t.rec.blob.arrayBuffer().then((ab) => AudioSys.decode(ab)))
+    const bytes = t.builtin ? fetchAudio(t.meta.file, (v) => cbs.forEach((f) => f(v))) : t.rec.blob.arrayBuffer();
+    const p = bytes.then((ab) => { AudioSys.init(); return AudioSys.decode(ab); })
       .then((buf) => {
         S.pending.delete(t.id); S.buffers.set(t.id, { buf, at: performance.now() });
-        while (S.buffers.size > 3) { // keep memory bounded: drop the least recently used track
+        while (S.buffers.size > 2) { // decoded songs are large (~80 MB for 4 min): keep at most two
           let old = null; for (const [k, v] of S.buffers) if (k !== t.id && (!S.sel || k !== S.sel.id) && (!old || v.at < old[1].at)) old = [k, v];
           if (!old) break; S.buffers.delete(old[0]);
         }
@@ -127,7 +143,7 @@ function preview(t, force) {
   if (!AudioSys.ready) return;
   if (!force && S.musicFor === t.id && AudioSys.music) return;
   const token = ++S.previewToken;
-  $('#np-text').textContent = t.builtin ? `Synthesising “${t.title}”…` : `Loading “${t.title}”…`;
+  $('#np-text').textContent = `Loading “${t.title}”…`;
   getBuffer(t).then((buf) => {
     if (token !== S.previewToken || S.state === 'play') return;
     AudioSys.playMusic(buf, { offset: Math.max(0, t.src.preview - 0.02), loop: true, fade: 0.9, vol: 0.9 });
@@ -168,11 +184,12 @@ function renderList() {
       el.appendChild(b);
     }
   };
-  section('YOUR MUSIC', mine); section('ORIGINAL SOUNDTRACK', built);
+  section('YOUR MUSIC', mine); section('FEATURED TRACKS', built);
 }
 function renderInfo() {
   const t = S.sel; if (!t) return;
-  $('#si-genre').textContent = t.genre; $('#si-title').textContent = t.title; $('#si-artist').textContent = t.artist;
+  $('#si-genre').textContent = t.genre; $('#si-title').textContent = t.title;
+  $('#si-artist').textContent = t.builtin ? `${t.artist} (incompetech.com) · CC BY 4.0` : t.artist;
   $('#si-bpm').textContent = t.bpm; $('#si-len').textContent = fmtTime(t.duration);
   const tabs = $('#diff-tabs'); tabs.innerHTML = '';
   for (const k of DIFF_ORDER) {
@@ -250,8 +267,8 @@ async function startGame() {
   await AudioSys.unlock();
   S.previewToken++;
   if (!S.buffers.has(t.id)) {
-    $('#load-title').textContent = t.builtin ? 'SYNTHESISING TRACK' : 'LOADING TRACK';
-    $('#load-sub').textContent = t.builtin ? 'Rendering the music on your device…' : 'Decoding your audio…'; $('#load-fill').style.width = '3%';
+    $('#load-title').textContent = 'LOADING TRACK';
+    $('#load-sub').textContent = t.builtin ? `“${t.title}” — ${t.artist}` : 'Decoding your audio…'; $('#load-fill').style.width = '3%';
     openOv('loading');
   }
   let buf;
@@ -420,7 +437,6 @@ function renderSettings() {
   head('AUDIO');
   slider('Master volume', 'master', 0, 1, 0.01, pct); slider('Music', 'music', 0, 1, 0.01, pct); slider('Hit sounds & effects', 'sfx', 0, 1, 0.01, pct);
   slider('Audio offset', 'offset', -200, 200, 1, (v) => (v > 0 ? '+' : '') + v + ' ms');
-  toggle('Melodic hit sounds (play the tune as you hit)', 'melodic');
   head('VISUALS');
   slider('Background dim while playing', 'dim', 0, 0.9, 0.01, pct); slider('Cursor size', 'cursorSize', 0.6, 1.8, 0.05, (v) => v.toFixed(2) + '×');
   { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = '<label>Effects quality</label><div class="seg"></div>';
@@ -480,6 +496,14 @@ function renderCustom() {
     return d;
   });
 }
+function renderCredits() {
+  const el = $('#credits-body');
+  el.innerHTML = '<h4>MUSIC</h4>' + TRACKS.map((m) =>
+    `<div class="credit"><b>${esc(m.credit)}</b><span>Licensed under ${esc(LICENSE.name)}<br><a href="${LICENSE.url}" target="_blank" rel="noopener">${LICENSE.url}</a> · <a href="${esc(m.source)}" target="_blank" rel="noopener">source</a></span></div>`).join('') +
+    `<p class="muted">${esc(CHANGES)}</p>` +
+    '<h4>FONTS</h4><div class="credit"><b>Orbitron</b><span>The Orbitron Project Authors · SIL Open Font License 1.1</span></div><div class="credit"><b>Rajdhani</b><span>Indian Type Foundry · SIL Open Font License 1.1</span></div>' +
+    '<h4>YOUR MUSIC</h4><p class="muted">Songs you add are analysed and played only on your device. They are never uploaded or shared.</p>';
+}
 function renderAchv() {
   const el = $('#achv-body'), d = D(); el.innerHTML = ''; let got = 0;
   for (const a of ACH) {
@@ -500,6 +524,7 @@ const ACTIONS = {
   help() { $('#hk1').textContent = keyLabel(D().settings.k1); $('#hk2').textContent = keyLabel(D().settings.k2); openOv('help'); },
   settings() { renderSettings(); openOv('settings'); },
   achv() { renderAchv(); openOv('achv'); },
+  credits() { renderCredits(); openOv('credits'); },
   mods() { renderMods(); openOv('mods'); },
   'mods-clear'() { D().mods = []; Save.save(); renderMods(); renderInfo(); },
   close() { closeOv(); },
@@ -646,12 +671,14 @@ async function boot() {
   R.cursorSize = D().settings.cursorSize; R.showErr = D().settings.errBar; R.showFps = D().settings.fps; R.allowShake = D().settings.shake;
   prog(55, 'LOADING FONTS');
   try { await Promise.race([Promise.all([document.fonts.load('900 20px Orbitron'), document.fonts.load('700 20px Orbitron'), document.fonts.load('700 20px Rajdhani'), document.fonts.load('600 20px Rajdhani')]), sleep(2500)]); } catch (e) { /* system fonts */ }
-  prog(75, 'TUNING INSTRUMENTS');
-  S.tracks = SONGS.map(builtinTrack);
+  prog(75, 'LOADING TRACKS');
+  try {
+    const charts = await (await fetch('music/charts.json')).json();
+    S.tracks = TRACKS.filter((m) => charts[m.id]).map((m) => builtinTrack(m, charts[m.id]));
+  } catch (e) { console.warn('[tracks] charts unavailable', e); S.tracks = []; }
   try { const recs = await Promise.race([Library.all(), sleep(2000).then(() => [])]); recs.sort((a, b) => b.added - a.added); for (const r of recs) if (r && r.analysis && r.blob) S.tracks.unshift(userTrack(r)); } catch (e) { /* no library */ }
-  const first = S.tracks.find((t) => t.id === D().lastSong) || S.tracks.find((t) => t.builtin);
-  S.sel = first; applyTheme(first);
-  getBuffer(first).catch(() => {}); // start synthesising the menu track right away
+  const first = S.tracks.find((t) => t.id === D().lastSong) || S.tracks.find((t) => t.builtin) || S.tracks[0];
+  if (first) { S.sel = first; applyTheme(first); getBuffer(first).catch(() => {}); } // fetch the menu track right away
   SDK.username().then((n) => { if (n) $('#pl-name').textContent = n.toUpperCase(); });
   bindInput();
   refreshPlayer();

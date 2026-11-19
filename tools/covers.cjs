@@ -7,9 +7,10 @@ const { chromium } = require('playwright');
 const BASE = process.argv[2] || 'http://localhost:8080';
 const OUT = path.join(__dirname, '..', 'crazygames-upload', 'covers');
 const COVERS = [
-  { file: 'cover-landscape-1920x1080.png', w: 1920, h: 1080, song: 'neon-skyline', at: 37.6 },
-  { file: 'cover-portrait-800x1200.png', w: 800, h: 1200, song: 'final-bloom', at: 47.2 },
-  { file: 'cover-square-800x800.png', w: 800, h: 800, song: 'starlight-rush', at: 34.5 },
+  // `at` is seconds into the first FEVER section of the track
+  { file: 'cover-landscape-1920x1080.png', w: 1920, h: 1080, song: 'getting-it-done', at: 6 },
+  { file: 'cover-portrait-800x1200.png', w: 800, h: 1200, song: 'carefree', at: 10 },
+  { file: 'cover-square-800x800.png', w: 800, h: 800, song: 'cipher', at: 4 },
 ];
 
 (async () => {
@@ -32,10 +33,11 @@ const COVERS = [
     await page.waitForTimeout(300);
     await page.click('[data-act="start"]');
     await page.waitForFunction(() => document.body.dataset.state === 'play', null, { timeout: 90000 });
+    await page.waitForTimeout(500);
     await page.evaluate(({ at }) => {
-      const sp = window.__SP;
+      const sp = window.__SP, src = sp.S.play.track.src, fev = src.sections.find((s) => s.fever);
       sp.R.noHud = true;
-      sp.S.play._startAt(at);
+      sp.S.play._startAt((fev ? src.stepTimes[fev.s0] : 30) + at);
       const st = document.createElement('style');
       st.textContent = `#btn-pause,#btn-skip{display:none!important}
         .cover-logo{position:fixed;inset:auto 0 0 0;z-index:50;padding:0 6% 7%;display:flex;flex-direction:column;align-items:center;gap:.4em;pointer-events:none;
